@@ -44,6 +44,9 @@ jobs:
           name: chrome-mv3
           path: .output/*.zip
           if-no-files-found: error
+          # WXT outputs to .output/, a dotfile dir; upload-artifact@v4 excludes
+          # hidden paths by default, so opt them back in.
+          include-hidden-files: true
 
   e2e:
     runs-on: ubuntu-latest
