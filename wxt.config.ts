@@ -3,7 +3,7 @@ import { defineConfig } from 'wxt';
 // https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: '.',
-  manifest: {
+  manifest: ({ mode }) => ({
     name: 'CSS Overrides',
     description:
       'Write per-site CSS overrides. Your styles are pre-loaded per site and applied only when you click Apply — never automatically.',
@@ -23,5 +23,16 @@ export default defineConfig({
     side_panel: {
       default_path: 'sidepanel/index.html',
     },
-  },
+    // Hard guarantee that the extension makes no network requests: `connect-src
+    // 'none'` blocks fetch/XHR/WebSocket/beacon from our pages, and `script-src
+    // 'self'` blocks any remote or inline code. Production-only so the dev
+    // server's HMR websocket keeps working in `npm run dev`.
+    ...(mode === 'production'
+      ? {
+          content_security_policy: {
+            extension_pages: "script-src 'self'; object-src 'self'; connect-src 'none'",
+          },
+        }
+      : {}),
+  }),
 });

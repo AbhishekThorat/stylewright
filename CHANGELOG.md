@@ -19,3 +19,5 @@ Initial release.
 - Light/dark theme support.
 - Minimal permissions (`activeTab`, `scripting`, `storage`) with per-origin
   access requested on demand.
+- Strict production Content Security Policy (`connect-src 'none'`) that makes the
+  no-network guarantee enforceable at the browser level.

@@ -14,6 +14,12 @@ test('side panel renders the editor and the three actions', async ({ context, ex
   await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
 
   await expect(page.locator('.app-name')).toHaveText('CSS Overrides');
+  // The header uses the same icon as the toolbar; confirm it actually loads
+  // (also proves the CSP allows packaged images).
+  const logoLoaded = await page
+    .locator('img.logo')
+    .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+  expect(logoLoaded).toBe(true);
   await expect(page.locator('#clearBtn')).toBeVisible();
   await expect(page.locator('#disableBtn')).toBeVisible();
   await expect(page.locator('#applyBtn')).toBeVisible();

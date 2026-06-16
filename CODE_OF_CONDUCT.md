@@ -30,13 +30,41 @@ Examples of unacceptable behavior:
 - Publishing others' private information without explicit permission
 - Other conduct which could reasonably be considered inappropriate
 
+## Enforcement Responsibilities
+
+Project maintainers are responsible for clarifying and enforcing our standards
+of acceptable behavior and will take appropriate and fair corrective action in
+response to any behavior they deem inappropriate, threatening, offensive, or
+harmful. Maintainers have the right to remove, edit, or reject contributions
+that are not aligned with this Code of Conduct, and will communicate reasons for
+moderation decisions when appropriate.
+
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement. All complaints
-will be reviewed and investigated promptly and fairly.
+reported to the project maintainer at **abhishek.thorat18@gmail.com** or
+privately via
+[GitHub Security Advisories](https://github.com/abhishekthorat/css-overrides/security/advisories/new).
+All complaints will be reviewed and investigated promptly and fairly. The
+maintainer is obligated to respect the privacy and security of the reporter of
+any incident.
+
+## Enforcement Guidelines
+
+Maintainers will follow these Community Impact Guidelines in determining the
+consequences for any action they deem in violation of this Code of Conduct:
+
+1. **Correction** — a private, written warning for unprofessional or unwelcome
+   behavior.
+2. **Warning** — consequences for continued behavior, with a set period of no
+   interaction.
+3. **Temporary Ban** — a temporary ban from any sort of interaction or public
+   communication with the community.
+4. **Permanent Ban** — a permanent ban from any sort of public interaction.
 
 ## Attribution
 
 This Code of Conduct is adapted from the
-[Contributor Covenant](https://www.contributor-covenant.org), version 2.1.
+[Contributor Covenant](https://www.contributor-covenant.org), version 2.1,
+available at
+https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.

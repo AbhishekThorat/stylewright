@@ -88,17 +88,11 @@ body {
 }
 
 .logo {
-  display: grid;
-  place-items: center;
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 13px;
   flex: 0 0 auto;
+  display: block;
 }
 
 .titles {

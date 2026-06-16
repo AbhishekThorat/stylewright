@@ -41,33 +41,92 @@ Overrides are stored locally (`chrome.storage.local`) and keyed by a flexible
 match rule (host by default), so the data model is ready for domain-wide and
 path-specific rules in the future.
 
-## Install
+## Limitations
 
-### From source (development)
+CSS Overrides injects a stylesheet into the page on demand. Because of how the
+browser and CSS work, a few things are out of scope:
+
+- **Closed Shadow DOM can't be styled.** Components using a *closed* shadow root
+  (some web components, certain native widgets) are sealed off from page CSS —
+  the injected stylesheet can't reach inside. *Open* shadow roots can be reached
+  only via `::part()`/`::slotted()` where the component exposes them.
+- **Cross-origin iframes are not styled.** Overrides apply to the top frame
+  only. Content inside a third-party iframe (embeds, some login widgets) is a
+  separate origin the extension intentionally does not touch.
+- **Browser-internal pages are off-limits.** `chrome://`, `brave://`,
+  `about:`, the Chrome Web Store, and other extensions' pages can't be styled —
+  the browser blocks injection there.
+- **Styles don't survive a full page reload.** By design, nothing is applied
+  automatically; after a hard navigation you reopen the panel and click Apply
+  again. (Your saved CSS is still there, pre-loaded.) In-page SPA navigation
+  *does* keep the styles.
+- **`file://` pages need a manual toggle.** Styling local files requires
+  enabling "Allow access to file URLs" for the extension in `chrome://extensions`.
+- **User-agent shadow internals** (e.g. the inner pieces of native form
+  controls) are only stylable to the extent the browser exposes pseudo-elements.
+
+## Run it locally
 
 ```bash
 git clone https://github.com/abhishekthorat/css-overrides.git
 cd css-overrides
 npm install
-npm run dev          # launches Chrome with the extension loaded (HMR)
 ```
 
-To produce a loadable build:
+**Develop with hot reload:**
+
+```bash
+npm run dev          # launches Chrome with the extension loaded (HMR)
+npm run dev:brave    # same, using your installed Brave
+```
+
+**Or build and load it manually:**
 
 ```bash
 npm run build        # output in .output/chrome-mv3
-npm run zip          # packaged zip for the Chrome Web Store
 ```
 
-Then load the unpacked `.output/chrome-mv3` directory via `chrome://extensions`
-→ **Developer mode** → **Load unpacked**. Works in Chrome and Brave.
+1. Open `chrome://extensions` (or `brave://extensions`).
+2. Turn on **Developer mode** (top-right).
+3. Click **Load unpacked** and select the `.output/chrome-mv3` folder.
+4. Pin the extension and click it to open the side panel on any website.
 
-## Privacy
+**Run the checks the way CI does:**
 
-CSS Overrides collects **no data** and makes **no network requests**. Everything
-you type stays in your browser's local storage. See [PRIVACY.md](./PRIVACY.md).
+```bash
+npm run check        # lint + format
+npm run typecheck
+npm test             # unit tests
+npm run build && npm run test:e2e   # end-to-end in real Chromium
+```
 
-## Permissions
+## Publishing to the Chrome Web Store
+
+The full, current checklist lives in [docs/PUBLISHING.md](./docs/PUBLISHING.md).
+In short:
+
+1. **One-time:** create a [Chrome Web Store developer account](https://chrome.google.com/webstore/devconsole)
+   (a one-time US$5 registration fee) and accept the developer agreement.
+2. Build the package: `npm run zip` → `.output/css-overrides-<version>-chrome.zip`.
+3. In the Developer Dashboard, **Add new item** and upload the zip.
+4. Fill in the listing: description, screenshots of the side panel, an icon, a
+   category, and the **privacy practices** form (declare "no data collected" and
+   link [PRIVACY.md](./PRIVACY.md)).
+5. Provide the permission justifications (see `docs/PUBLISHING.md`) — minimal
+   permissions mean a faster review.
+6. **Submit for review.** Approval typically takes a few days. Brave users
+   install from the same Chrome Web Store listing.
+
+## Privacy & security
+
+CSS Overrides collects **no data** and makes **no network requests** — there is
+no server, no analytics, and no telemetry. Everything you type stays in your
+browser's local storage. This is enforced, not just promised: the production
+build ships a Content Security Policy with `connect-src 'none'`, so the
+extension's pages physically cannot open a network connection. See
+[PRIVACY.md](./PRIVACY.md) and [SECURITY.md](./SECURITY.md).
+
+### Permissions
 
 The extension requests the minimum needed to work:
 
@@ -75,7 +134,8 @@ The extension requests the minimum needed to work:
 | --- | --- |
 | `activeTab` | Inject your CSS into the current tab — only when you click Apply. |
 | `scripting` | The API used to perform the injection. |
-| `storage` | Save your per-site overrides locally. |
+| `storage` / `unlimitedStorage` | Save your per-site overrides locally. |
+| `sidePanel` | Host the editor UI. |
 
 It does **not** request blanket "read and change all your data on all websites"
 access. Per-site access is requested on demand, one origin at a time.
@@ -93,7 +153,17 @@ access. Per-site access is requested on demand, one origin at a time.
 
 Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) and
 our [Code of Conduct](./CODE_OF_CONDUCT.md). The architecture and the decisions
-behind it are documented in [docs/adr](./docs/adr).
+behind it are documented in [docs/adr](./docs/adr), and assistant-facing notes
+live in [CLAUDE.md](./CLAUDE.md).
+
+## Built with Claude 🤖
+
+This project — its architecture, code, tests, icons, and docs — was designed and
+built with [**Claude**](https://claude.com/claude-code) (Anthropic's Claude
+Opus, via Claude Code), including two senior-architecture review passes that
+shaped the side-panel design, the storage schema, and the security model. Kudos
+and thanks to Claude for the heavy lifting. Every commit is co-authored
+accordingly.
 
 ## License
 
