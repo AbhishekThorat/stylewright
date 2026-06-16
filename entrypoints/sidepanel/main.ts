@@ -94,7 +94,7 @@ function render(ctx: TabContext): void {
   el.killSwitch.checked = ctx.globallyDisabled;
   if (ctx.globallyDisabled) {
     showBanner('All overrides are turned off.', 'Turn on', () =>
-      run({ type: 'setGloballyDisabled', disabled: false }, 'Overrides on'),
+      run({ type: 'setGloballyDisabled', disabled: false, tabId: ctx.tabId }, 'Overrides on'),
     );
   } else {
     hideBanner();
@@ -107,25 +107,50 @@ function render(ctx: TabContext): void {
     ? ''
     : 'This page can’t be styled. Open a regular website to add overrides.';
 
-  // Button states
+  // Button states. Disable gates on intent (entry is enabled), NOT on the live
+  // `applied` probe — after a reload the <style> is gone but the entry is still
+  // enabled, and the user must still be able to turn it off.
   el.applyBtn.disabled = !editable;
   el.clearBtn.disabled = !editable;
-  el.disableBtn.disabled = !ctx.injectable || !ctx.applied;
+  el.disableBtn.disabled = !ctx.injectable || !ctx.entry?.enabled;
   el.clearSiteBtn.disabled = !ctx.entry;
 }
 
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
+
+/** The active tab of THIS panel's window — not whatever window last had focus. */
+async function resolveTabId(): Promise<number | null> {
+  try {
+    const win = await chrome.windows.getCurrent();
+    const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
+    return tab?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Latest-wins guard: tab/focus events can fire overlapping refreshes whose
+// responses resolve out of order; only the newest result is allowed to render.
+let refreshSeq = 0;
 async function refresh(): Promise<void> {
-  const res = await send({ type: 'getContext' });
+  const seq = ++refreshSeq;
+  const tabId = await resolveTabId();
+  const res = await send({ type: 'getContext', tabId });
+  if (seq !== refreshSeq) return; // superseded by a newer refresh
   if (res.ok) render(res.data);
 }
 
 async function onApply(): Promise<void> {
+  const tabId = current?.tabId;
+  if (tabId == null) {
+    setStatus('This page cannot be styled.', 'error');
+    return;
+  }
   const css = getEditorText();
   setStatus('Applying…');
-  let res = await send({ type: 'apply', css });
+  let res = await send({ type: 'apply', tabId, css });
 
   // activeTab may not cover this tab (global side panel). Ask for the one
   // origin and retry — this prompt names a single site, not "all websites".
@@ -136,7 +161,7 @@ async function onApply(): Promise<void> {
       setStatus('Permission needed to apply here.', 'error');
       return;
     }
-    res = await send({ type: 'apply', css });
+    res = await send({ type: 'apply', tabId, css });
   }
 
   if (!res.ok) {
@@ -156,20 +181,29 @@ function onClear(): void {
 }
 
 async function onDisable(): Promise<void> {
-  await run({ type: 'disable' }, 'Disabled. Your CSS is kept.');
+  const tabId = current?.tabId;
+  if (tabId == null) return;
+  await run({ type: 'disable', tabId }, 'Disabled. Your CSS is kept.');
 }
 
 async function onClearSite(): Promise<void> {
   closeMenu();
+  const tabId = current?.tabId;
+  if (tabId == null) return;
+  // Name the exact site we'll act on — the tab the panel is currently showing.
   const host = current?.host ?? 'this site';
   if (!confirm(`Delete all saved styles for ${host}? This cannot be undone.`)) return;
   drafts.delete(boundHost ?? '');
   boundHost = null;
-  await run({ type: 'clearSite' }, 'Saved styles deleted.');
+  await run({ type: 'clearSite', tabId }, 'Saved styles deleted.');
 }
 
 async function onKillSwitch(): Promise<void> {
-  await run({ type: 'setGloballyDisabled', disabled: el.killSwitch.checked }, undefined);
+  await run({
+    type: 'setGloballyDisabled',
+    disabled: el.killSwitch.checked,
+    tabId: current?.tabId ?? null,
+  });
 }
 
 /** Send a request, render the returned context, and report status. */
@@ -220,7 +254,7 @@ async function onImportFile(): Promise<void> {
   if (!confirm('Importing replaces all current overrides. Continue?')) return;
 
   const json = await file.text();
-  const res = await send({ type: 'import', json });
+  const res = await send({ type: 'import', json, tabId: current?.tabId ?? null });
   if (!res.ok) {
     setStatus(res.error, 'error');
     return;

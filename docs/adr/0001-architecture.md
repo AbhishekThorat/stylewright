@@ -96,6 +96,28 @@ WXT (MV3 framework), TypeScript, CodeMirror 6, Biome (lint+format), Vitest
 - A global kill switch and an always-reachable Disable button are the escape
   hatch from a self-inflicted `display:none` lockout.
 
+## Implementation-review amendments
+
+A post-implementation architecture review surfaced correctness issues in the
+global-side-panel ÷ activeTab interaction, now resolved:
+
+- **Explicit tab targeting.** Every page-acting request carries the `tabId` the
+  panel resolves from *its own window* (`chrome.windows.getCurrent`), and the
+  worker acts on exactly that tab. This removes the `lastFocusedWindow`
+  ambiguity and the risk that destructive **Clear Site** deletes a different
+  site than the one named in the confirm dialog.
+- **Disable gates on intent, not live state.** The button is enabled when the
+  entry's `enabled` flag is set, not when the `applied` probe sees a live
+  `<style>`. After a hard reload (no auto-apply in v1) the style is gone but the
+  entry is still enabled, and the user must remain able to turn it off.
+- **`applied` is treated as best-effort.** A failed `executeScript` probe means
+  "no access right now", not "absent"; only an explicit `true` marks applied.
+- **Permission detection via `permissions.contains`.** The apply retry path
+  branches on the actual origin grant rather than matching (localized) error
+  text. `file:` origins are excluded since they can't be granted by prompt.
+- **Latest-wins refresh.** Overlapping context refreshes from tab/focus events
+  are sequence-guarded so a stale response can't overwrite a newer render.
+
 ## Deferred (P2)
 
 Path/regex match UI, `MutationObserver` re-injection for hostile DOMs,

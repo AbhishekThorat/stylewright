@@ -1,5 +1,5 @@
 import { applyStyleInPage, isStylePresentInPage, removeStyleInPage } from '@/src/lib/inject';
-import { isInjectableUrl } from '@/src/lib/match';
+import { hostKeyFromUrl, isInjectableUrl } from '@/src/lib/match';
 import type { Request, Result, ResultMap, TabContext } from '@/src/lib/messages';
 import {
   deleteEntry,
@@ -32,21 +32,22 @@ const NEEDS_PERMISSION = 'NEEDS_PERMISSION:';
 async function handle(message: Request): Promise<Result<unknown>> {
   switch (message.type) {
     case 'getContext':
-      return ok(await buildContext());
+      return ok(await buildContext(message.tabId));
 
     case 'apply':
-      return apply(message.css);
+      return apply(message.tabId, message.css);
 
     case 'disable':
-      return disable();
+      return disable(message.tabId);
 
     case 'clearSite':
-      return clearSite();
+      return clearSite(message.tabId);
 
     case 'setGloballyDisabled': {
       await setGloballyDisabled(message.disabled);
-      // Reflect the kill switch immediately on the live page.
-      const tab = await getActiveTab();
+      // Reflect the kill switch on the tab the user is looking at. Other tabs
+      // have no auto-apply, so they self-clear on their next reload.
+      const tab = message.tabId != null ? await getTab(message.tabId) : await getActiveTab();
       if (tab?.id != null && isInjectableUrl(tab.url)) {
         if (message.disabled) {
           await tryExecute(tab.id, removeStyleInPage);
@@ -55,7 +56,7 @@ async function handle(message: Request): Promise<Result<unknown>> {
           if (entry?.enabled) await tryExecute(tab.id, applyStyleInPage, [entry.css]);
         }
       }
-      return ok(await buildContext());
+      return ok(await buildContext(message.tabId));
     }
 
     case 'export':
@@ -63,7 +64,7 @@ async function handle(message: Request): Promise<Result<unknown>> {
 
     case 'import': {
       const count = await importBundle(message.json);
-      return ok({ count, context: await buildContext() });
+      return ok({ count, context: await buildContext(message.tabId) });
     }
 
     default:
@@ -71,8 +72,8 @@ async function handle(message: Request): Promise<Result<unknown>> {
   }
 }
 
-async function apply(css: string): Promise<Result<TabContext>> {
-  const tab = await getActiveTab();
+async function apply(tabId: number, css: string): Promise<Result<TabContext>> {
+  const tab = await getTab(tabId);
   if (!tab?.id || !isInjectableUrl(tab.url)) {
     return { ok: false, error: 'This page cannot be styled.' };
   }
@@ -80,41 +81,41 @@ async function apply(css: string): Promise<Result<TabContext>> {
   // Inject first; only persist if the injection actually lands.
   const injected = await execute(tab.id, applyStyleInPage, [css]);
   if (!injected.ok) {
-    return needsPermissionOrError(injected.error, tab.url ?? '');
+    return await needsPermissionOrError(injected.error, tab.url ?? '');
   }
 
   await saveEntryForUrl(tab.url ?? '', css, true);
-  return ok(await buildContext());
+  return ok(await buildContext(tabId));
 }
 
-async function disable(): Promise<Result<TabContext>> {
-  const tab = await getActiveTab();
+async function disable(tabId: number): Promise<Result<TabContext>> {
+  const tab = await getTab(tabId);
   const entry = tab?.url ? await getEntryForUrl(tab.url) : null;
 
-  // Keep the saved CSS; just stop applying it.
+  // Keep the saved CSS; just stop applying it. Safe no-op if nothing is live.
   if (entry) await setEntryEnabled(entry.id, false);
   if (tab?.id != null && isInjectableUrl(tab.url)) {
     await tryExecute(tab.id, removeStyleInPage);
   }
-  return ok(await buildContext());
+  return ok(await buildContext(tabId));
 }
 
-async function clearSite(): Promise<Result<TabContext>> {
-  const tab = await getActiveTab();
+async function clearSite(tabId: number): Promise<Result<TabContext>> {
+  const tab = await getTab(tabId);
   const entry = tab?.url ? await getEntryForUrl(tab.url) : null;
   if (entry) await deleteEntry(entry.id);
   if (tab?.id != null && isInjectableUrl(tab.url)) {
     await tryExecute(tab.id, removeStyleInPage);
   }
-  return ok(await buildContext());
+  return ok(await buildContext(tabId));
 }
 
 // ---------------------------------------------------------------------------
 // Context + injection helpers
 // ---------------------------------------------------------------------------
 
-async function buildContext(): Promise<TabContext> {
-  const tab = await getActiveTab();
+async function buildContext(tabId: number | null): Promise<TabContext> {
+  const tab = tabId != null ? await getTab(tabId) : await getActiveTab();
   const url = tab?.url ?? null;
   const injectable = isInjectableUrl(url);
   const meta = await getMeta();
@@ -123,13 +124,15 @@ async function buildContext(): Promise<TabContext> {
   let applied = false;
   if (injectable && tab?.id != null) {
     const probe = await execute(tab.id, isStylePresentInPage);
+    // A failed probe means "no access right now", not "definitely absent" — so
+    // we only treat an explicit `true` as applied and never assert otherwise.
     applied = probe.ok && probe.result === true;
   }
 
   return {
     tabId: tab?.id ?? null,
     url,
-    host: injectable && entry ? entry.match.value : injectable ? hostLabel(url) : null,
+    host: injectable && url ? hostKeyFromUrl(url) : null,
     injectable,
     entry,
     applied,
@@ -137,12 +140,11 @@ async function buildContext(): Promise<TabContext> {
   };
 }
 
-function hostLabel(url: string | null): string | null {
-  if (!url) return null;
+async function getTab(tabId: number): Promise<chrome.tabs.Tab | undefined> {
   try {
-    return new URL(url).host;
+    return await chrome.tabs.get(tabId);
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -180,10 +182,18 @@ async function tryExecute<Args extends unknown[], R>(
   await execute(tabId, func, args);
 }
 
-function needsPermissionOrError(error: string, url: string): Result<TabContext> {
+/**
+ * Decide whether an injection failure is a missing-permission case (worth
+ * prompting the user for this one origin) or a genuine error. We branch on the
+ * actual grant via `permissions.contains` rather than parsing the (localized,
+ * changeable) error text.
+ */
+async function needsPermissionOrError(error: string, url: string): Promise<Result<TabContext>> {
   const pattern = originPattern(url);
-  if (pattern && /cannot access|permission|host/i.test(error)) {
-    return { ok: false, error: `${NEEDS_PERMISSION}${pattern}` };
+  // File access is a separate, non-promptable browser setting — don't offer it.
+  if (pattern?.startsWith('http')) {
+    const granted = await chrome.permissions.contains({ origins: [pattern] }).catch(() => true);
+    if (!granted) return { ok: false, error: `${NEEDS_PERMISSION}${pattern}` };
   }
   return { ok: false, error };
 }

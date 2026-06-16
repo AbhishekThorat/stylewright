@@ -21,14 +21,17 @@ export interface TabContext {
   globallyDisabled: boolean;
 }
 
+// Every page-targeting request carries the exact tabId the panel resolved from
+// its OWN window, so the worker never acts on a different tab than the one the
+// user is looking at (the side panel is global; the active tab can drift).
 export type Request =
-  | { type: 'getContext' }
-  | { type: 'apply'; css: string }
-  | { type: 'disable' }
-  | { type: 'clearSite' }
-  | { type: 'setGloballyDisabled'; disabled: boolean }
+  | { type: 'getContext'; tabId: number | null }
+  | { type: 'apply'; tabId: number; css: string }
+  | { type: 'disable'; tabId: number }
+  | { type: 'clearSite'; tabId: number }
+  | { type: 'setGloballyDisabled'; disabled: boolean; tabId: number | null }
   | { type: 'export' }
-  | { type: 'import'; json: string };
+  | { type: 'import'; json: string; tabId: number | null };
 
 export type RequestType = Request['type'];
 
