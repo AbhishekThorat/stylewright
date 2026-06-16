@@ -1,9 +1,9 @@
 name: Release
 
-# Push a tag like v0.1.0 to build, package, and attach the zip to a GitHub
-# Release. Publishing to the Chrome Web Store is intentionally a manual,
-# credentialed step (see docs/PUBLISHING.md) — this workflow only produces the
-# verified artifact.
+# Trunk-based: cut a release by tagging vX.Y.Z on main. The tag is the deploy
+# trigger — this job verifies, builds, attaches the zip to a GitHub Release, and
+# (when the Chrome Web Store secrets are configured) uploads and publishes the
+# new version automatically. See docs/PUBLISHING.md.
 
 on:
   push:
@@ -16,6 +16,11 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+      CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+      REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,8 +41,26 @@ jobs:
       - name: Build and package
         run: npm run release
 
+      # Copy the zip out of the hidden .output/ dir so release tooling never
+      # trips on dotfile-directory globbing.
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          cp .output/*-chrome.zip dist/
+          echo "ZIP_PATH=$(ls dist/*-chrome.zip | head -1)" >> "$GITHUB_ENV"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: .output/*.zip
+          files: dist/*.zip
           generate_release_notes: true
+
+      - name: Publish to Chrome Web Store
+        if: ${{ env.CLIENT_ID != '' && env.EXTENSION_ID != '' }}
+        run: |
+          echo "Uploading $ZIP_PATH to extension $EXTENSION_ID and publishing…"
+          npx chrome-webstore-upload --source "$ZIP_PATH" --extension-id "$EXTENSION_ID"
+
+      - name: Note when store publish is skipped
+        if: ${{ env.CLIENT_ID == '' || env.EXTENSION_ID == '' }}
+        run: echo "::notice::Chrome Web Store secrets not configured — created the GitHub Release only. Add the CWS_* secrets to enable auto-publish (see docs/PUBLISHING.md)."

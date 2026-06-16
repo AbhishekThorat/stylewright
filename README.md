@@ -118,22 +118,29 @@ npm test             # unit tests
 npm run build && npm run test:e2e   # end-to-end in real Chromium
 ```
 
-## Publishing to the Chrome Web Store
+## Releases & publishing
 
-The full, current checklist lives in [docs/PUBLISHING.md](./docs/PUBLISHING.md).
-In short:
+Releases are **trunk-based and automated**. There is no release branch — you cut
+a release by tagging `vX.Y.Z` on `main`, and CD takes over:
 
-1. **One-time:** create a [Chrome Web Store developer account](https://chrome.google.com/webstore/devconsole)
-   (a one-time US$5 registration fee) and accept the developer agreement.
-2. Build the package: `npm run zip` → `.output/css-overrides-<version>-chrome.zip`.
-3. In the Developer Dashboard, **Add new item** and upload the zip.
-4. Fill in the listing: description, screenshots of the side panel, an icon, a
-   category, and the **privacy practices** form (declare "no data collected" and
-   link [PRIVACY.md](./PRIVACY.md)).
-5. Provide the permission justifications (see `docs/PUBLISHING.md`) — minimal
-   permissions mean a faster review.
-6. **Submit for review.** Approval typically takes a few days. Brave users
-   install from the same Chrome Web Store listing.
+```
+CI  every push / PR  → lint, typecheck, unit tests, build, e2e
+CD  push tag vX.Y.Z  → verify, build, GitHub Release, publish to the Web Store
+```
+
+```bash
+npx changeset           # describe a user-facing change (during development)
+npm run version         # bump version + update CHANGELOG from changesets
+git commit -am "release: vX.Y.Z"
+git tag vX.Y.Z && git push --follow-tags   # ← triggers the release pipeline
+```
+
+The first store submission is manual (to create the listing and get the
+extension ID); after that, tagging auto-publishes new versions. The complete
+walkthrough — developer account, the one-time listing, getting the Google API
+credentials/refresh token, and the GitHub secrets to set — is in
+**[docs/PUBLISHING.md](./docs/PUBLISHING.md)**. Brave users install from the same
+Chrome Web Store listing.
 
 ## Privacy & security
 
