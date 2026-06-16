@@ -1,0 +1,13 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "verbatimModuleSyntax": true,
+    "types": ["chrome", "node"]
+  },
+  "include": ["entrypoints/**/*", "src/**/*", "tests/**/*", "*.ts", ".wxt/wxt.d.ts"]
+}

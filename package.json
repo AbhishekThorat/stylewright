@@ -1,0 +1,50 @@
+{
+  "name": "css-overrides",
+  "version": "0.1.0",
+  "description": "A clean, modern browser extension for writing per-site CSS overrides.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Abhishek Thorat",
+  "homepage": "https://github.com/abhishekthorat/css-overrides",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhishekthorat/css-overrides.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abhishekthorat/css-overrides/issues"
+  },
+  "keywords": ["chrome-extension", "brave", "css", "userstyles", "manifest-v3", "wxt"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "wxt",
+    "icons": "node scripts/generate-icons.mjs",
+    "dev:brave": "wxt -b chrome --chromium-binary \"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser\"",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@playwright/test": "^1.49.1",
+    "@types/chrome": "^0.0.287",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "wxt": "^0.19.13"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.7.1",
+    "@codemirror/lang-css": "^6.3.0",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.36.1",
+    "codemirror": "^6.0.1"
+  }
+}

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.output/
+.wxt/
+dist/
+*.zip
+
+# Test / coverage
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.log
+
+# Env / secrets
+.env
+.env.*
+!.env.example
