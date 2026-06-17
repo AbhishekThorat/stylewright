@@ -5,11 +5,19 @@ listing). We use **trunk-based releases**: there is no release branch — you cu
 release by tagging `vX.Y.Z` on `main`, and that tag triggers the CD pipeline
 (`.github/workflows/release.yml`), which verifies, builds, attaches the zip to a
 GitHub Release, and — once credentials are configured — uploads and publishes the
-new version to the Chrome Web Store automatically.
+new version to the Chrome Web Store.
+
+The pipeline is split into two jobs for least privilege: a `release` job that
+builds and publishes the GitHub Release **without any store credentials**, and a
+separate `publish` job that holds the `CWS_*` secrets and is gated on the
+`chrome-web-store` GitHub Environment. Add a required reviewer to that
+environment and the store publish waits for your one-click approval.
 
 ```
 CI  (ci.yml)      every push / PR → lint, typecheck, unit, build, e2e
-CD  (release.yml) push tag vX.Y.Z → verify, build, GitHub Release, CWS publish
+CD  (release.yml) push tag vX.Y.Z →
+      release job  verify, build, GitHub Release        (no secrets)
+      publish job  upload + publish to CWS   (env-gated, secrets here only)
 ```
 
 ---
@@ -71,22 +79,33 @@ The CD pipeline talks to the Web Store API with OAuth. You need a **Client ID**,
    - In **Step 2**, click **Exchange authorization code for tokens** and copy the
      **Refresh token**.
 
-### 4. Add the secrets to GitHub
+### 4. Create the environment and add the secrets
 
-Repo → **Settings → Secrets and variables → Actions → New repository secret**.
-Add all four:
+The store credentials live on a protected **Environment**, not as plain repo
+secrets, so they are scoped to the single publish job and can require approval.
 
-| Secret | Value |
-| --- | --- |
-| `CWS_EXTENSION_ID` | The 32-char Item ID from step 2 |
-| `CWS_CLIENT_ID` | OAuth Client ID from step 3 |
-| `CWS_CLIENT_SECRET` | OAuth Client Secret from step 3 |
-| `CWS_REFRESH_TOKEN` | Refresh token from step 3 |
+1. Repo → **Settings → Environments → New environment** → name it
+   **`chrome-web-store`** (the name the workflow references).
+2. Under **Deployment protection rules**, add yourself as a **Required
+   reviewer**. Now every store publish pauses for your one-click approval.
+3. In that environment, under **Environment secrets**, add all four:
 
-These are encrypted and only exposed to the release job. **Never commit them.**
+   | Secret | Value |
+   | --- | --- |
+   | `CWS_EXTENSION_ID` | The 32-char Item ID from step 2 |
+   | `CWS_CLIENT_ID` | OAuth Client ID from step 3 |
+   | `CWS_CLIENT_SECRET` | OAuth Client Secret from step 3 |
+   | `CWS_REFRESH_TOKEN` | Refresh token from step 3 |
 
-> Until these secrets exist, tagging a release still works — the pipeline creates
-> the GitHub Release and simply skips the store-publish step with a notice.
+4. Flip the feature flag: repo → **Settings → Secrets and variables → Actions →
+   Variables** → add a repository variable **`CWS_ENABLED`** with value `true`.
+   (The `if:` gate uses a variable because the `secrets` context isn't allowed in
+   `if:` conditions.)
+
+These are encrypted and only exposed to the publish job. **Never commit them.**
+
+> Until `CWS_ENABLED` is `true`, tagging a release still works — the pipeline
+> creates the GitHub Release and simply skips the publish job.
 
 ---
 
@@ -111,7 +130,8 @@ These are encrypted and only exposed to the release job. **Never commit them.**
    - verify (lint, typecheck, unit tests),
    - build and package the zip,
    - create a GitHub Release with the zip attached,
-   - upload **and publish** the new version to the Chrome Web Store.
+   - **wait for your approval** on the `chrome-web-store` environment, then
+     upload and publish the new version to the Chrome Web Store.
 
 Store review for updates is usually faster than the first submission. You can
 also publish manually any time:

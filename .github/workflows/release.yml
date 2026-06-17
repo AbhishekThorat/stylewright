@@ -1,9 +1,11 @@
 name: Release
 
 # Trunk-based: cut a release by tagging vX.Y.Z on main. The tag is the deploy
-# trigger — this job verifies, builds, attaches the zip to a GitHub Release, and
-# (when the Chrome Web Store secrets are configured) uploads and publishes the
-# new version automatically. See docs/PUBLISHING.md.
+# trigger. The `release` job verifies, builds, and attaches the zip to a GitHub
+# Release — it holds NO store credentials. The separate `publish` job uploads to
+# the Chrome Web Store; it is gated on the `chrome-web-store` Environment (set a
+# required reviewer there for one-click approval) and is the ONLY place the CWS
+# secrets are in scope. See docs/PUBLISHING.md.
 
 on:
   push:
@@ -11,20 +13,19 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
-      CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-      CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-      REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -47,20 +48,64 @@ jobs:
         run: |
           mkdir -p dist
           cp .output/*-chrome.zip dist/
-          echo "ZIP_PATH=$(ls dist/*-chrome.zip | head -1)" >> "$GITHUB_ENV"
+
+      - name: Upload zip for publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cws-zip
+          path: dist/*.zip
+          if-no-files-found: error
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: dist/*.zip
           generate_release_notes: true
 
-      - name: Publish to Chrome Web Store
-        if: ${{ env.CLIENT_ID != '' && env.EXTENSION_ID != '' }}
-        run: |
-          echo "Uploading $ZIP_PATH to extension $EXTENSION_ID and publishing…"
-          npx chrome-webstore-upload --source "$ZIP_PATH" --extension-id "$EXTENSION_ID"
+  # Isolated, least-privilege publish: no project dependency install, secrets
+  # scoped to the single upload step. Gate on the `vars.CWS_ENABLED` repository
+  # variable (the `secrets` context is not allowed in `if:`, but `vars` is). Set
+  # vars.CWS_ENABLED = "true" and configure the CWS_* secrets on the
+  # `chrome-web-store` Environment to turn publishing on.
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    if: ${{ vars.CWS_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
 
-      - name: Note when store publish is skipped
-        if: ${{ env.CLIENT_ID == '' || env.EXTENSION_ID == '' }}
-        run: echo "::notice::Chrome Web Store secrets not configured — created the GitHub Release only. Add the CWS_* secrets to enable auto-publish (see docs/PUBLISHING.md)."
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Download built zip
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: cws-zip
+          path: dist
+
+      # --ignore-scripts: install the pinned, integrity-checked tree from the
+      # lockfile without running any postinstall scripts, so no dependency code
+      # executes before the one step that holds the secrets. We then invoke the
+      # local binary directly (no npx network fallback). The upload CLI and its
+      # own deps are the only third-party code that ever sees the credentials —
+      # and they legitimately need them to publish.
+      - name: Install publish tooling (no scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Publish to Chrome Web Store
+        env:
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: |
+          ZIP_PATH="$(ls dist/*-chrome.zip | head -1)"
+          echo "Uploading $ZIP_PATH to extension $EXTENSION_ID and publishing…"
+          ./node_modules/.bin/chrome-webstore-upload \
+            --source "$ZIP_PATH" \
+            --extension-id "$EXTENSION_ID"

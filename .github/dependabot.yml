@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # npm dependencies — weekly, grouped to keep PR noise low.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      codemirror:
+        patterns:
+          - "@codemirror/*"
+          - "codemirror"
+      dev-dependencies:
+        dependency-type: development
+
+  # Keep pinned action SHAs current (Dependabot updates the SHA + version
+  # comment together, preserving the pin-to-commit hardening).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
