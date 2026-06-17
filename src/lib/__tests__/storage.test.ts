@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { StyleEntry } from '../storage';
-import { SCHEMA_VERSION, migrate, parseImport, selectEntryForUrl } from '../storage';
+import type { Meta, StyleEntry } from '../storage';
+import {
+  SCHEMA_VERSION,
+  migrate,
+  parseImport,
+  selectEntryForUrl,
+  shouldAutoApply,
+} from '../storage';
 
 function entry(partial: Partial<StyleEntry> & Pick<StyleEntry, 'id' | 'match'>): StyleEntry {
   return {
     css: 'body{}',
     enabled: true,
+    autoApply: false,
     updatedAt: 1,
     schemaVersion: SCHEMA_VERSION,
     ...partial,
@@ -48,6 +55,37 @@ describe('migrate', () => {
   it('defaults meta and honors a true kill switch', () => {
     expect(migrate(undefined, undefined).meta.globallyDisabled).toBe(false);
     expect(migrate(undefined, { globallyDisabled: true }).meta.globallyDisabled).toBe(true);
+  });
+
+  it('defaults autoApply to false for legacy (v1) entries', () => {
+    const raw = { e: { id: 'e', match: { type: 'host', value: 'a.com' }, css: 'a{}' } };
+    expect(migrate(raw, undefined).entries.e?.autoApply).toBe(false);
+  });
+
+  it('preserves an explicit autoApply flag', () => {
+    const raw = {
+      e: { id: 'e', match: { type: 'host', value: 'a.com' }, css: 'a{}', autoApply: true },
+    };
+    expect(migrate(raw, undefined).entries.e?.autoApply).toBe(true);
+  });
+});
+
+describe('shouldAutoApply', () => {
+  const meta = (globallyDisabled = false): Meta => ({
+    schemaVersion: SCHEMA_VERSION,
+    globallyDisabled,
+  });
+  const e = (enabled: boolean, autoApply: boolean): StyleEntry =>
+    entry({ id: 'x', match: { type: 'host', value: 'a.com' }, enabled, autoApply });
+
+  it('is true only when enabled, opted-in, and not globally disabled', () => {
+    expect(shouldAutoApply(e(true, true), meta(false))).toBe(true);
+  });
+
+  it('is false when disabled, not opted-in, or kill switch is on', () => {
+    expect(shouldAutoApply(e(false, true), meta(false))).toBe(false);
+    expect(shouldAutoApply(e(true, false), meta(false))).toBe(false);
+    expect(shouldAutoApply(e(true, true), meta(true))).toBe(false);
   });
 });
 

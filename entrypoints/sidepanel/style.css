@@ -339,6 +339,28 @@ button.menu-row:hover {
   cursor: pointer;
 }
 
+/* ---- Auto-apply row --------------------------------------------------- */
+.auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.auto-row:has(input:disabled) {
+  opacity: 0.5;
+}
+
+.auto-row input:disabled {
+  cursor: not-allowed;
+}
+
 [hidden] {
   display: none !important;
 }

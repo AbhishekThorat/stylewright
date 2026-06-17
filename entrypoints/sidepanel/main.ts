@@ -22,6 +22,8 @@ const el = {
   clearBtn: must<HTMLButtonElement>('#clearBtn'),
   disableBtn: must<HTMLButtonElement>('#disableBtn'),
   applyBtn: must<HTMLButtonElement>('#applyBtn'),
+  autoApply: must<HTMLInputElement>('#autoApply'),
+  autoApplyRow: must<HTMLLabelElement>('#autoApplyRow'),
   menuBtn: must<HTMLButtonElement>('#menuBtn'),
   menu: must<HTMLDivElement>('#menu'),
   killSwitch: must<HTMLInputElement>('#killSwitch'),
@@ -114,6 +116,14 @@ function render(ctx: TabContext): void {
   el.clearBtn.disabled = !editable;
   el.disableBtn.disabled = !ctx.injectable || !ctx.entry?.enabled;
   el.clearSiteBtn.disabled = !ctx.entry;
+
+  // Auto-apply: only offered once there's an enabled, saved override to re-apply.
+  const canAutoApply = !!ctx.entry?.enabled && editable;
+  el.autoApply.checked = ctx.entry?.autoApply === true;
+  el.autoApply.disabled = !canAutoApply;
+  el.autoApplyRow.title = canAutoApply
+    ? 'Re-apply this site’s CSS automatically on every page load'
+    : 'Apply your CSS first to turn on auto-apply';
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +182,36 @@ async function onApply(): Promise<void> {
   boundHost = null; // force reload from the freshly saved entry
   render(res.data);
   setStatus('Applied.', 'success');
+}
+
+async function onAutoApplyToggle(): Promise<void> {
+  const tabId = current?.tabId;
+  if (tabId == null) return;
+  const autoApply = el.autoApply.checked;
+  setStatus(autoApply ? 'Turning on auto-apply…' : 'Turning off auto-apply…');
+  let res = await send({ type: 'setAutoApply', tabId, autoApply });
+
+  // Auto-apply at load needs a persistent grant for this one origin. Prompt for
+  // it (single-site, not "all websites") and retry, mirroring onApply.
+  if (!res.ok && res.error.startsWith(NEEDS_PERMISSION)) {
+    const origin = res.error.slice(NEEDS_PERMISSION.length);
+    const granted = await chrome.permissions.request({ origins: [origin] }).catch(() => false);
+    if (!granted) {
+      el.autoApply.checked = false;
+      setStatus('Permission needed to auto-apply here.', 'error');
+      return;
+    }
+    res = await send({ type: 'setAutoApply', tabId, autoApply });
+  }
+
+  if (!res.ok) {
+    el.autoApply.checked = !autoApply; // revert the optimistic toggle
+    setStatus(res.error, 'error');
+    return;
+  }
+  boundHost = null; // re-sync from the freshly saved entry
+  render(res.data);
+  setStatus(autoApply ? 'Auto-applying on load.' : 'Auto-apply turned off.', 'success');
 }
 
 function onClear(): void {
@@ -318,6 +358,7 @@ function must<T extends Element>(selector: string): T {
 el.applyBtn.addEventListener('click', onApply);
 el.clearBtn.addEventListener('click', onClear);
 el.disableBtn.addEventListener('click', onDisable);
+el.autoApply.addEventListener('change', onAutoApplyToggle);
 el.menuBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   toggleMenu();

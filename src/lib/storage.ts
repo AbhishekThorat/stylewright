@@ -9,7 +9,7 @@
 
 import { type Match, defaultMatchForUrl, matchesUrl } from './match';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const ENTRIES_KEY = 'overrides';
 const META_KEY = 'meta';
@@ -19,7 +19,14 @@ export interface StyleEntry {
   id: string;
   match: Match;
   css: string;
+  /** Master on/off (the Disable button). When false, nothing applies. */
   enabled: boolean;
+  /**
+   * Opt-in: re-apply this entry automatically on every page load (v2). Gated by
+   * `enabled` and the global kill switch. Requires a persistent host permission
+   * for the origin; defaults false so existing entries stay manual-only.
+   */
+  autoApply: boolean;
   updatedAt: number;
   schemaVersion: number;
 }
@@ -66,6 +73,15 @@ export function selectEntryForUrl(entries: StyleEntry[], url: string): StyleEntr
     return byType !== 0 ? byType : b.updatedAt - a.updatedAt;
   });
   return matching[0] ?? null;
+}
+
+/**
+ * Should this entry be injected automatically on page load? Pure gate shared by
+ * the auto-apply content script and the worker: the entry must be enabled, opted
+ * into auto-apply, and the global kill switch off.
+ */
+export function shouldAutoApply(entry: StyleEntry, meta: Meta): boolean {
+  return entry.enabled && entry.autoApply && !meta.globallyDisabled;
 }
 
 /** Normalize raw storage into the current schema. Forward-compatible by design. */
@@ -116,6 +132,8 @@ function coerceEntry(value: unknown): StyleEntry | null {
     match,
     css: v.css,
     enabled: v.enabled !== false,
+    // v1 entries have no `autoApply`; default false keeps them manual-only.
+    autoApply: v.autoApply === true,
     updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : Date.now(),
     schemaVersion: SCHEMA_VERSION,
   };
@@ -173,6 +191,8 @@ export async function saveEntryForUrl(
     match,
     css,
     enabled,
+    // Editing/re-applying CSS must not silently change the auto-apply intent.
+    autoApply: existing?.autoApply ?? false,
     updatedAt: Date.now(),
     schemaVersion: SCHEMA_VERSION,
   };
@@ -186,6 +206,15 @@ export async function setEntryEnabled(id: string, enabled: boolean): Promise<voi
   const entry = entries[id];
   if (!entry) return;
   entry.enabled = enabled;
+  entry.updatedAt = Date.now();
+  await writeRaw(entries, meta);
+}
+
+export async function setEntryAutoApply(id: string, autoApply: boolean): Promise<void> {
+  const { entries, meta } = await readRaw();
+  const entry = entries[id];
+  if (!entry) return;
+  entry.autoApply = autoApply;
   entry.updatedAt = Date.now();
   await writeRaw(entries, meta);
 }

@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: ({ mode }) => ({
     name: 'CSS Overrides',
     description:
-      'Write per-site CSS overrides. Your styles are pre-loaded per site and applied only when you click Apply — never automatically.',
+      'Write per-site CSS overrides. Your styles are pre-loaded per site and applied when you click Apply — or automatically on page load when you opt in, per site.',
     // Minimal permissions: activeTab keeps us off the "all your data" warning.
     permissions: ['activeTab', 'scripting', 'storage', 'sidePanel', 'unlimitedStorage'],
     // Specific origins are requested on demand, one site at a time.

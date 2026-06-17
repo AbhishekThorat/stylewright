@@ -20,9 +20,12 @@ Do not break these without an explicit decision recorded in `docs/adr/`:
 2. **All data stays local.** Persistence is `chrome.storage.local` only. Never
    add `storage.sync` or any remote backend. Export/import is the only data
    movement, and it is user-initiated, on-device file I/O.
-3. **Never auto-apply (v1).** Injection happens only on an explicit Apply click.
-   The `enabled` flag and per-origin permission seams exist for a *future*
-   opt-in auto-apply, but v1 must not inject on page load.
+3. **Never auto-apply without explicit per-site opt-in.** Manual Apply is the
+   default and injects only on an explicit click. A site auto-applies on load
+   *only* after the user turns on its per-site auto-apply toggle, which requires
+   a persistent per-origin host permission (see `docs/adr/0002-opt-in-auto-apply.md`).
+   Auto-apply is gated by `shouldAutoApply` (entry `enabled` + `autoApply` +
+   global kill switch), so Disable and the kill switch always stop it.
 4. **Storage is the source of truth.** The injected `<style>` element is derived
    state. Never read application state back out of the page DOM.
 5. **No `innerHTML`.** Render with `textContent`, `replaceChildren`, or the

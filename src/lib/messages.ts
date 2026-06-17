@@ -27,6 +27,7 @@ export interface TabContext {
 export type Request =
   | { type: 'getContext'; tabId: number | null }
   | { type: 'apply'; tabId: number; css: string }
+  | { type: 'setAutoApply'; tabId: number; autoApply: boolean }
   | { type: 'disable'; tabId: number }
   | { type: 'clearSite'; tabId: number }
   | { type: 'setGloballyDisabled'; disabled: boolean; tabId: number | null }
@@ -38,6 +39,7 @@ export type RequestType = Request['type'];
 export interface ResultMap {
   getContext: TabContext;
   apply: TabContext;
+  setAutoApply: TabContext;
   disable: TabContext;
   clearSite: TabContext;
   setGloballyDisabled: TabContext;

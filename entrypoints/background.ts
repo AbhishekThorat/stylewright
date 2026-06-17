@@ -1,13 +1,15 @@
 import { applyStyleInPage, isStylePresentInPage, removeStyleInPage } from '@/src/lib/inject';
-import { hostKeyFromUrl, isInjectableUrl } from '@/src/lib/match';
+import { hostKeyFromUrl, isInjectableUrl, matchesUrl } from '@/src/lib/match';
 import type { Request, Result, ResultMap, TabContext } from '@/src/lib/messages';
 import {
   deleteEntry,
   exportBundle,
+  getAllEntries,
   getEntryForUrl,
   getMeta,
   importBundle,
   saveEntryForUrl,
+  setEntryAutoApply,
   setEntryEnabled,
   setGloballyDisabled,
 } from '@/src/lib/storage';
@@ -24,6 +26,12 @@ export default defineBackground(() => {
       .catch((err: unknown) => sendResponse({ ok: false, error: errorMessage(err) }));
     return true; // keep the message channel open for the async response
   });
+
+  // Auto-apply content-script registrations are derived state: rebuild them from
+  // storage + granted permissions on install and on each browser start, so they
+  // stay consistent after upgrades, imports, or externally-revoked permissions.
+  chrome.runtime.onInstalled.addListener(() => void reconcileAutoApply());
+  chrome.runtime.onStartup.addListener(() => void reconcileAutoApply());
 });
 
 /** Marker prefix the panel detects to trigger a per-origin permission prompt. */
@@ -36,6 +44,9 @@ async function handle(message: Request): Promise<Result<unknown>> {
 
     case 'apply':
       return apply(message.tabId, message.css);
+
+    case 'setAutoApply':
+      return setAutoApply(message.tabId, message.autoApply);
 
     case 'disable':
       return disable(message.tabId);
@@ -64,6 +75,8 @@ async function handle(message: Request): Promise<Result<unknown>> {
 
     case 'import': {
       const count = await importBundle(message.json);
+      // Imported entries may carry auto-apply; rebuild registrations to match.
+      await reconcileAutoApply();
       return ok({ count, context: await buildContext(message.tabId) });
     }
 
@@ -85,6 +98,47 @@ async function apply(tabId: number, css: string): Promise<Result<TabContext>> {
   }
 
   await saveEntryForUrl(tab.url ?? '', css, true);
+  return ok(await buildContext(tabId));
+}
+
+/**
+ * Turn opt-in auto-apply on/off for the current site. Enabling requires a
+ * persistent host permission (load-time injection has no user gesture, so
+ * `activeTab` can't cover it) and registers a `document_start` content script
+ * for the origin; we also inject immediately so it takes effect without a
+ * reload. Disabling unregisters and revokes the origin grant when no other
+ * auto-apply entry still needs it. See ADR 0002.
+ */
+async function setAutoApply(tabId: number, autoApply: boolean): Promise<Result<TabContext>> {
+  const tab = await getTab(tabId);
+  if (!tab?.id || !isInjectableUrl(tab.url)) {
+    return { ok: false, error: 'This page cannot be styled.' };
+  }
+  const url = tab.url ?? '';
+  const entry = await getEntryForUrl(url);
+  if (!entry) {
+    return { ok: false, error: 'Apply your CSS first, then turn on auto-apply.' };
+  }
+  const pattern = originPattern(url);
+  if (!pattern?.startsWith('http')) {
+    // file: origins can't be granted by prompt, so they can't auto-apply.
+    return { ok: false, error: 'Auto-apply is only available on http/https sites.' };
+  }
+
+  if (autoApply) {
+    const granted = await chrome.permissions.contains({ origins: [pattern] }).catch(() => false);
+    if (!granted) return { ok: false, error: `${NEEDS_PERMISSION}${pattern}` };
+
+    await setEntryAutoApply(entry.id, true);
+    await registerAutoApply(pattern);
+    // Apply now too, so the toggle takes effect without a reload.
+    if (entry.enabled) await tryExecute(tab.id, applyStyleInPage, [entry.css]);
+  } else {
+    await setEntryAutoApply(entry.id, false);
+    await unregisterAutoApply(pattern);
+    await maybeRevokeOrigin(pattern);
+    // Leave any live <style> as-is — the override is still enabled (manual).
+  }
   return ok(await buildContext(tabId));
 }
 
@@ -205,6 +259,87 @@ function originPattern(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-apply: per-origin content-script registration (ADR 0002)
+// ---------------------------------------------------------------------------
+
+// WXT builds the runtime-registered content script to this path.
+const AUTO_APPLY_JS = 'content-scripts/auto-apply.js';
+const AUTO_APPLY_ID_PREFIX = 'aa-';
+
+/** Deterministic, charset-safe content-script id for an origin pattern. */
+function scriptIdForPattern(pattern: string): string {
+  return AUTO_APPLY_ID_PREFIX + pattern.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+/** Strip the trailing glob so we can match-test entries: `…/*` → `…/`. */
+function representativeUrl(pattern: string): string {
+  return pattern.replace(/\*$/, '');
+}
+
+/** Register (or refresh) the document_start auto-apply script for an origin. */
+async function registerAutoApply(pattern: string): Promise<void> {
+  const script: chrome.scripting.RegisteredContentScript = {
+    id: scriptIdForPattern(pattern),
+    matches: [pattern],
+    js: [AUTO_APPLY_JS],
+    runAt: 'document_start',
+    allFrames: false,
+    persistAcrossSessions: true,
+  };
+  const existing = await chrome.scripting
+    .getRegisteredContentScripts({ ids: [script.id] })
+    .catch(() => [] as chrome.scripting.RegisteredContentScript[]);
+  if (existing.length > 0) {
+    await chrome.scripting.updateContentScripts([script]);
+  } else {
+    await chrome.scripting.registerContentScripts([script]);
+  }
+}
+
+async function unregisterAutoApply(pattern: string): Promise<void> {
+  await chrome.scripting
+    .unregisterContentScripts({ ids: [scriptIdForPattern(pattern)] })
+    .catch(() => {});
+}
+
+/** Drop the origin grant once no remaining auto-apply entry needs it. */
+async function maybeRevokeOrigin(pattern: string): Promise<void> {
+  const url = representativeUrl(pattern);
+  const entries = await getAllEntries();
+  const stillNeeded = entries.some((e) => e.autoApply && matchesUrl(e.match, url));
+  if (!stillNeeded) {
+    await chrome.permissions.remove({ origins: [pattern] }).catch(() => {});
+  }
+}
+
+/**
+ * Rebuild auto-apply registrations from storage + granted permissions: register
+ * a script for every granted origin that a still-auto-apply entry matches, and
+ * unregister any of ours that no longer should run. Idempotent.
+ */
+async function reconcileAutoApply(): Promise<void> {
+  const autoEntries = (await getAllEntries()).filter((e) => e.autoApply);
+  const perms = await chrome.permissions.getAll().catch(() => ({ origins: [] as string[] }));
+  const grantedOrigins = perms.origins ?? [];
+
+  const desired = grantedOrigins.filter((pattern) =>
+    autoEntries.some((e) => matchesUrl(e.match, representativeUrl(pattern))),
+  );
+  const desiredIds = new Set(desired.map(scriptIdForPattern));
+
+  const registered = await chrome.scripting
+    .getRegisteredContentScripts()
+    .catch(() => [] as chrome.scripting.RegisteredContentScript[]);
+  const staleIds = registered
+    .filter((s) => s.id.startsWith(AUTO_APPLY_ID_PREFIX) && !desiredIds.has(s.id))
+    .map((s) => s.id);
+  if (staleIds.length > 0) {
+    await chrome.scripting.unregisterContentScripts({ ids: staleIds }).catch(() => {});
+  }
+  for (const pattern of desired) await registerAutoApply(pattern);
 }
 
 function ok<T>(data: T): Result<T> {
