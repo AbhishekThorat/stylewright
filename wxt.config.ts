@@ -4,7 +4,7 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: '.',
   manifest: ({ mode }) => ({
-    name: 'CSS Overrides',
+    name: 'Stylewright',
     description:
       'Write per-site CSS overrides. Your styles are pre-loaded per site and applied when you click Apply — or automatically on page load when you opt in, per site.',
     // Minimal permissions: activeTab keeps us off the "all your data" warning.
@@ -18,7 +18,7 @@ export default defineConfig({
       128: 'icon/128.png',
     },
     action: {
-      default_title: 'CSS Overrides',
+      default_title: 'Stylewright',
     },
     side_panel: {
       default_path: 'sidepanel/index.html',

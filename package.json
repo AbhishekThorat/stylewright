@@ -1,7 +1,7 @@
 {
-  "name": "css-overrides",
+  "name": "stylewright",
   "version": "0.1.0",
-  "description": "A clean, modern browser extension for writing per-site CSS overrides.",
+  "description": "Stylewright — a clean, modern browser extension for writing per-site CSS overrides.",
   "type": "module",
   "license": "MIT",
   "author": "Abhishek Thorat",

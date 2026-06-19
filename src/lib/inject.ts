@@ -11,11 +11,11 @@
  * exact-string matching required. See ADR 0001.
  */
 
-export const STYLE_ELEMENT_ID = 'css-overrides-injected-style';
+export const STYLE_ELEMENT_ID = 'stylewright-injected-style';
 
 /** Runs in the page: find-or-create the managed <style> and set its CSS. */
 export function applyStyleInPage(css: string): void {
-  const id = 'css-overrides-injected-style';
+  const id = 'stylewright-injected-style';
   let el = document.getElementById(id) as HTMLStyleElement | null;
   if (!el) {
     el = document.createElement('style');
@@ -28,10 +28,10 @@ export function applyStyleInPage(css: string): void {
 
 /** Runs in the page: remove the managed <style> if present. */
 export function removeStyleInPage(): void {
-  document.getElementById('css-overrides-injected-style')?.remove();
+  document.getElementById('stylewright-injected-style')?.remove();
 }
 
 /** Runs in the page: report whether the managed <style> is currently present. */
 export function isStylePresentInPage(): boolean {
-  return document.getElementById('css-overrides-injected-style') !== null;
+  return document.getElementById('stylewright-injected-style') !== null;
 }

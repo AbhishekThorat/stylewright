@@ -97,7 +97,7 @@ describe('parseImport', () => {
 
   it('round-trips a valid bundle', () => {
     const bundle = {
-      app: 'css-overrides',
+      app: 'stylewright',
       schemaVersion: SCHEMA_VERSION,
       exportedAt: 1,
       entries: [entry({ id: 'x', match: { type: 'host', value: 'a.com' }, css: 'a{}' })],
@@ -105,5 +105,17 @@ describe('parseImport', () => {
     };
     const { entries } = parseImport(JSON.stringify(bundle));
     expect(entries.x?.css).toBe('a{}');
+  });
+
+  it('still imports legacy css-overrides bundles', () => {
+    const bundle = {
+      app: 'css-overrides',
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: 1,
+      entries: [entry({ id: 'y', match: { type: 'host', value: 'b.com' }, css: 'b{}' })],
+      meta: { schemaVersion: SCHEMA_VERSION, globallyDisabled: false },
+    };
+    const { entries } = parseImport(JSON.stringify(bundle));
+    expect(entries.y?.css).toBe('b{}');
   });
 });

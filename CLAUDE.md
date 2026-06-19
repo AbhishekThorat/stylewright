@@ -4,7 +4,7 @@ Guidance for Claude Code (and any AI assistant) working in this repository.
 
 ## What this is
 
-**CSS Overrides** — a Manifest V3 browser extension (Chrome/Brave) for writing
+**Stylewright** — a Manifest V3 browser extension (Chrome/Brave) for writing
 **per-site CSS overrides**. The user opens a side panel, the editor pre-loads
 the CSS last saved for that site, and the CSS is injected **only** when the user
 clicks **Apply**. Nothing is applied automatically and nothing leaves the
@@ -42,7 +42,7 @@ context. The **background service worker** (`entrypoints/background.ts`) owns
 storage, permissions, and injection; it is stateless between events (MV3 evicts
 idle workers — always re-read from storage). Injection runs a self-contained
 function (`src/lib/inject.ts`) via `chrome.scripting.executeScript` that manages
-a single `<style id="css-overrides-injected-style">` element. See
+a single `<style id="stylewright-injected-style">` element. See
 `docs/adr/0001-architecture.md` for the decisions and their rationale.
 
 ## Where things live
@@ -84,7 +84,7 @@ Before committing: `npm run check && npm run typecheck && npm test`.
   over module scope. Repeat literals (like the element id) inside them.
 - Conventional Commits. Add a changeset (`npx changeset`) for user-facing
   changes. Commits in this repo are co-authored with Claude.
-- Single brand: name **CSS Overrides**, accent indigo `#4f46e5`, the rounded
+- Single brand: name **Stylewright**, accent indigo `#4f46e5`, the rounded
   brace mark. Keep naming and wording consistent across manifest, README, UI,
   and store listing.
 

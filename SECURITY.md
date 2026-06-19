@@ -11,7 +11,7 @@ We will acknowledge your report within 72 hours and aim to ship a fix promptly.
 
 ## Scope and threat model
 
-CSS Overrides injects **user-authored CSS** into pages at the user's explicit
+Stylewright injects **user-authored CSS** into pages at the user's explicit
 request. Some notes on the threat model:
 
 - The extension makes **no network requests** and has **no backend**. All data

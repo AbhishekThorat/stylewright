@@ -40,7 +40,7 @@ export interface Meta {
 export type EntryMap = Record<string, StyleEntry>;
 
 export interface ExportBundle {
-  app: 'css-overrides';
+  app: 'stylewright';
   schemaVersion: number;
   exportedAt: number;
   entries: StyleEntry[];
@@ -108,9 +108,11 @@ export function parseImport(json: string): { entries: EntryMap; meta: Meta } {
   if (!data || typeof data !== 'object') {
     throw new Error('File does not contain an export bundle.');
   }
-  const bundle = data as Partial<ExportBundle>;
-  if (bundle.app !== 'css-overrides') {
-    throw new Error('This file was not exported by CSS Overrides.');
+  const bundle = data as Partial<ExportBundle> & { app?: string };
+  // Accept the legacy `css-overrides` tag so files exported before the rename
+  // still import. New exports are tagged `stylewright`.
+  if (bundle.app !== 'stylewright' && bundle.app !== 'css-overrides') {
+    throw new Error('This file was not exported by Stylewright.');
   }
   return migrate(arrayToMap(bundle.entries), bundle.meta);
 }
@@ -234,7 +236,7 @@ export async function setGloballyDisabled(disabled: boolean): Promise<void> {
 export async function exportBundle(): Promise<ExportBundle> {
   const { entries, meta } = await readRaw();
   return {
-    app: 'css-overrides',
+    app: 'stylewright',
     schemaVersion: SCHEMA_VERSION,
     exportedAt: Date.now(),
     entries: Object.values(entries),

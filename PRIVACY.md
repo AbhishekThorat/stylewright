@@ -2,12 +2,12 @@
 
 _Last updated: 2026-06-16_
 
-CSS Overrides is designed to collect as little as possible — in practice,
+Stylewright is designed to collect as little as possible — in practice,
 nothing.
 
 ## What we collect
 
-**Nothing.** CSS Overrides does not collect, transmit, sell, or share any
+**Nothing.** Stylewright does not collect, transmit, sell, or share any
 personal data.
 
 ## What is stored, and where

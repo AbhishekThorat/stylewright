@@ -1,11 +1,11 @@
-# ADR 0001: Core architecture for CSS Overrides
+# ADR 0001: Core architecture for Stylewright
 
 - **Status:** Accepted
 - **Date:** 2026-06-16
 
 ## Context
 
-CSS Overrides is a Manifest V3 extension for Chrome/Brave that lets users write
+Stylewright is a Manifest V3 extension for Chrome/Brave that lets users write
 per-site CSS overrides. Styles are pre-loaded per hostname and applied only on
 explicit user action — never automatically. This ADR records the foundational
 decisions, several of which are one-way doors.
@@ -25,7 +25,7 @@ which site they're about to change.
 ### 2. Injection: content-managed `<style>` element, not `insertCSS`
 
 We inject via `chrome.scripting.executeScript`, running a small function that
-finds-or-creates `<style id="css-overrides">` on `document.documentElement` and
+finds-or-creates `<style id="stylewright-injected-style">` on `document.documentElement` and
 sets its `textContent`. Disable removes the element.
 
 We reject `chrome.scripting.insertCSS` / `removeCSS` because `removeCSS`

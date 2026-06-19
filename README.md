@@ -1,8 +1,8 @@
 <div align="center">
 
-# CSS Overrides
+# Stylewright
 
-**A clean, modern browser extension for writing per-site CSS overrides.**
+**Stylewright — a clean, modern browser extension for writing per-site CSS overrides. 100% local.**
 
 [![CI](https://github.com/abhishekthorat/css-overrides/actions/workflows/ci.yml/badge.svg)](https://github.com/abhishekthorat/css-overrides/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -10,7 +10,7 @@
 
 </div>
 
-CSS Overrides lets you restyle any website with your own CSS. It remembers the
+Stylewright lets you restyle any website with your own CSS. It remembers the
 last styles you used **per site** and pre-loads them into the editor the next
 time you open the panel — so `facebook.com` keeps its own overrides, separate
 from every other site.
@@ -43,7 +43,7 @@ path-specific rules in the future.
 
 ## Limitations
 
-CSS Overrides injects a stylesheet into the page on demand. Because of how the
+Stylewright injects a stylesheet into the page on demand. Because of how the
 browser and CSS work, a few things are out of scope:
 
 - **Closed Shadow DOM can't be styled.** Components using a *closed* shadow root
@@ -144,7 +144,7 @@ Chrome Web Store listing.
 
 ## Privacy & security
 
-CSS Overrides collects **no data** and makes **no network requests** — there is
+Stylewright collects **no data** and makes **no network requests** — there is
 no server, no analytics, and no telemetry. Everything you type stays in your
 browser's local storage. This is enforced, not just promised: the production
 build ships a Content Security Policy with `connect-src 'none'`, so the

@@ -13,7 +13,7 @@ test('side panel renders the editor and the three actions', async ({ context, ex
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
 
-  await expect(page.locator('.app-name')).toHaveText('CSS Overrides');
+  await expect(page.locator('.app-name')).toHaveText('Stylewright');
   // The header uses the same icon as the toolbar; confirm it actually loads
   // (also proves the CSP allows packaged images).
   const logoLoaded = await page

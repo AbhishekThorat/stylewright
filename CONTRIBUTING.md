@@ -1,6 +1,6 @@
-# Contributing to CSS Overrides
+# Contributing to Stylewright
 
-Thanks for your interest in improving CSS Overrides! This document explains how
+Thanks for your interest in improving Stylewright! This document explains how
 to get set up and the conventions we follow.
 
 ## Getting started

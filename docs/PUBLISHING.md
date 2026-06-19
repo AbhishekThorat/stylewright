@@ -1,6 +1,6 @@
 # Publishing & Release
 
-CSS Overrides ships to the Chrome Web Store (Brave installs from the same
+Stylewright ships to the Chrome Web Store (Brave installs from the same
 listing). We use **trunk-based releases**: there is no release branch — you cut a
 release by tagging `vX.Y.Z` on `main`, and that tag triggers the CD pipeline
 (`.github/workflows/release.yml`), which verifies, builds, attaches the zip to a
@@ -38,7 +38,7 @@ The Web Store API can only **update an existing** item, and listing details
 (description, screenshots, category, privacy answers) always live in the
 dashboard. So the very first publish is manual:
 
-1. Build the package locally: `npm run zip` → `.output/css-overrides-<version>-chrome.zip`.
+1. Build the package locally: `npm run zip` → `.output/stylewright-<version>-chrome.zip`.
 2. In the dashboard, click **Add new item** and upload that zip.
 3. Fill in the listing (see the [checklist](#listing-checklist) below) and
    **Submit for review**.
@@ -139,7 +139,7 @@ also publish manually any time:
 ```bash
 npm run zip
 EXTENSION_ID=… CLIENT_ID=… CLIENT_SECRET=… REFRESH_TOKEN=… \
-  npx chrome-webstore-upload --source .output/css-overrides-*-chrome.zip
+  npx chrome-webstore-upload --source .output/stylewright-*-chrome.zip
 ```
 
 ---

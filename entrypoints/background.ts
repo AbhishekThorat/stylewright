@@ -18,7 +18,7 @@ export default defineBackground(() => {
   // Clicking the toolbar icon opens the side panel (the editor surface).
   chrome.sidePanel
     ?.setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((err) => console.error('[css-overrides] setPanelBehavior failed', err));
+    .catch((err) => console.error('[stylewright] setPanelBehavior failed', err));
 
   chrome.runtime.onMessage.addListener((message: Request, _sender, sendResponse) => {
     handle(message)
