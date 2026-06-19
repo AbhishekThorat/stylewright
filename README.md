@@ -8,6 +8,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 
+<p><img src="docs/assets/demo.gif" alt="Stylewright restyling a page live in the side panel" width="800"></p>
+
 </div>
 
 Stylewright lets you restyle any website with your own CSS. It remembers the
