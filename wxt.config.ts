@@ -5,8 +5,9 @@ export default defineConfig({
   srcDir: '.',
   manifest: ({ mode }) => ({
     name: 'Stylewright',
+    // Chrome Web Store caps the manifest description at 132 chars.
     description:
-      'Write per-site CSS overrides. Your styles are pre-loaded per site and applied when you click Apply — or automatically on page load when you opt in, per site.',
+      'Write per-site CSS to restyle any website. Injected only when you click Apply. 100% local — no account, no network, no tracking.',
     // Minimal permissions: activeTab keeps us off the "all your data" warning.
     permissions: ['activeTab', 'scripting', 'storage', 'sidePanel', 'unlimitedStorage'],
     // Specific origins are requested on demand, one site at a time.
