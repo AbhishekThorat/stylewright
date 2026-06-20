@@ -13,14 +13,7 @@
   "bugs": {
     "url": "https://github.com/abhishekthorat/stylewright/issues"
   },
-  "keywords": [
-    "chrome-extension",
-    "brave",
-    "css",
-    "userstyles",
-    "manifest-v3",
-    "wxt"
-  ],
+  "keywords": ["chrome-extension", "brave", "css", "userstyles", "manifest-v3", "wxt"],
   "engines": {
     "node": ">=20"
   },
