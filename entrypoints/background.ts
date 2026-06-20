@@ -15,21 +15,18 @@ import {
 } from '@/src/lib/storage';
 
 export default defineBackground(() => {
-  // Open the panel from our OWN action.onClicked handler rather than via
-  // `openPanelOnActionClick`. The latter consumes the click and never fires
-  // `onClicked`, so the `activeTab` grant — which is what lets the panel read the
-  // tab URL and inject without a broad permission — never happens. Handling the
-  // click ourselves both grants activeTab for the invoked tab AND opens the
-  // panel. See ADR 0003.
+  // Handle the click ourselves instead of `openPanelOnActionClick`: that helper
+  // consumes the click and never fires `onClicked`, so the `activeTab` grant —
+  // what lets the panel read the URL and inject — never happens. This both grants
+  // activeTab for the invoked tab and opens the panel.
   chrome.action.onClicked.addListener((tab) => {
     if (tab.windowId != null) {
       chrome.sidePanel
         .open({ windowId: tab.windowId })
         .catch((err) => console.error('[stylewright] sidePanel.open failed', err));
     }
-    // The click just granted activeTab for this tab, but no tab/focus event
-    // fires, so an already-open panel won't know. Nudge it to re-read context.
-    // (No panel open yet → no receiver → ignore; its own init refresh covers it.)
+    // The click granted activeTab but fires no tab/focus event; nudge an
+    // already-open panel to re-read. No panel open yet → no receiver → ignore.
     chrome.runtime.sendMessage({ type: 'panelRefresh' }).catch(() => {});
   });
 
@@ -40,9 +37,8 @@ export default defineBackground(() => {
     return true; // keep the message channel open for the async response
   });
 
-  // Auto-apply content-script registrations are derived state: rebuild them from
-  // storage + granted permissions on install and on each browser start, so they
-  // stay consistent after upgrades, imports, or externally-revoked permissions.
+  // Auto-apply registrations are derived state: rebuild from storage + granted
+  // permissions on install/start so they survive upgrades, imports, and revokes.
   chrome.runtime.onInstalled.addListener(() => void reconcileAutoApply());
   chrome.runtime.onStartup.addListener(() => void reconcileAutoApply());
 });
@@ -115,12 +111,10 @@ async function apply(tabId: number, css: string): Promise<Result<TabContext>> {
 }
 
 /**
- * Turn opt-in auto-apply on/off for the current site. Enabling requires a
- * persistent host permission (load-time injection has no user gesture, so
- * `activeTab` can't cover it) and registers a `document_start` content script
- * for the origin; we also inject immediately so it takes effect without a
- * reload. Disabling unregisters and revokes the origin grant when no other
- * auto-apply entry still needs it. See ADR 0002.
+ * Turn opt-in auto-apply on/off for the current site. Enabling needs a persistent
+ * host permission (load-time injection has no user gesture for `activeTab`) and
+ * registers a `document_start` script; disabling unregisters and revokes the
+ * origin grant once no other auto-apply entry needs it.
  */
 async function setAutoApply(tabId: number, autoApply: boolean): Promise<Result<TabContext>> {
   const tab = await getTab(tabId);
@@ -254,10 +248,8 @@ async function tryExecute<Args extends unknown[], R>(
 }
 
 /**
- * Decide whether an injection failure is a missing-permission case (worth
- * prompting the user for this one origin) or a genuine error. We branch on the
- * actual grant via `permissions.contains` rather than parsing the (localized,
- * changeable) error text.
+ * Is an injection failure a missing-permission case (prompt for this one origin)
+ * or a genuine error? Branch on the actual grant, not the localized error text.
  */
 async function needsPermissionOrError(error: string, url: string): Promise<Result<TabContext>> {
   const pattern = originPattern(url);
@@ -279,7 +271,7 @@ function originPattern(url: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Auto-apply: per-origin content-script registration (ADR 0002)
+// Auto-apply: per-origin content-script registration
 // ---------------------------------------------------------------------------
 
 // WXT builds the runtime-registered content script to this path.

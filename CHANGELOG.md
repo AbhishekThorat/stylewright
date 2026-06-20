@@ -10,7 +10,7 @@
   The toolbar click is now handled directly (granting `activeTab` and opening the
   panel), tabs that haven't been activated show a clear "click the icon" prompt
   instead of the misleading "can't be styled" message, and the panel re-reads
-  context immediately after the grant. See ADR 0003.
+  context immediately after the grant.
 
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/) and uses

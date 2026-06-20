@@ -12,7 +12,7 @@ device.
 
 ## Non-negotiable invariants
 
-Do not break these without an explicit decision recorded in `docs/adr/`:
+Do not break these without a deliberate, recorded decision:
 
 1. **No network. Ever.** The extension makes zero API calls. No `fetch`,
    `XMLHttpRequest`, `WebSocket`, `sendBeacon`, analytics, or telemetry. A
@@ -23,7 +23,7 @@ Do not break these without an explicit decision recorded in `docs/adr/`:
 3. **Never auto-apply without explicit per-site opt-in.** Manual Apply is the
    default and injects only on an explicit click. A site auto-applies on load
    *only* after the user turns on its per-site auto-apply toggle, which requires
-   a persistent per-origin host permission (see `docs/adr/0002-opt-in-auto-apply.md`).
+   a persistent per-origin host permission.
    Auto-apply is gated by `shouldAutoApply` (entry `enabled` + `autoApply` +
    global kill switch), so Disable and the kill switch always stop it.
 4. **Storage is the source of truth.** The injected `<style>` element is derived
@@ -35,7 +35,7 @@ Do not break these without an explicit decision recorded in `docs/adr/`:
    broad-access install warning. The panel is **invocation-scoped**: clicking the
    toolbar icon grants `activeTab` for that tab, which is how the panel reads the
    URL and injects. Tabs the user hasn't invoked show a "click the icon" prompt,
-   not a styleable editor (see `docs/adr/0003-activetab-invocation-scoped-panel.md`).
+   not a styleable editor.
    Auto-apply still requests a specific persistent origin on demand via
    `chrome.permissions.request`.
 
@@ -47,8 +47,7 @@ context. The **background service worker** (`entrypoints/background.ts`) owns
 storage, permissions, and injection; it is stateless between events (MV3 evicts
 idle workers — always re-read from storage). Injection runs a self-contained
 function (`src/lib/inject.ts`) via `chrome.scripting.executeScript` that manages
-a single `<style id="stylewright-injected-style">` element. See
-`docs/adr/0001-architecture.md` for the decisions and their rationale.
+a single `<style id="stylewright-injected-style">` element.
 
 ## Where things live
 
@@ -63,7 +62,6 @@ a single `<style id="stylewright-injected-style">` element. See
 | `src/lib/__tests__/` | Vitest unit tests |
 | `tests/e2e/` | Playwright end-to-end tests (load the built extension) |
 | `scripts/generate-icons.mjs` | Code-generates the brand icons (no binary blobs) |
-| `docs/adr/` | Architecture Decision Records |
 
 ## Commands
 

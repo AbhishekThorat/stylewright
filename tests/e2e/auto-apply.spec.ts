@@ -3,7 +3,7 @@ import type { Worker } from '@playwright/test';
 import { expect, test } from './fixtures';
 
 /**
- * Auto-apply (ADR 0002) is the one path the jsdom unit tests can't cover: a
+ * Auto-apply is the one path the jsdom unit tests can't cover: a
  * `document_start` content script, registered per-origin, that injects a site's
  * saved CSS on load and respects the `shouldAutoApply` gate. This exercises it
  * end-to-end against a local server.

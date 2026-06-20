@@ -179,9 +179,8 @@ access. Per-site access is requested on demand, one origin at a time.
 ## Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) and
-our [Code of Conduct](./CODE_OF_CONDUCT.md). The architecture and the decisions
-behind it are documented in [docs/adr](./docs/adr), and assistant-facing notes
-live in [CLAUDE.md](./CLAUDE.md).
+our [Code of Conduct](./CODE_OF_CONDUCT.md). Assistant-facing notes live in
+[CLAUDE.md](./CLAUDE.md).
 
 ## Built with Claude 🤖
 

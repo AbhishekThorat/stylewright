@@ -1,11 +1,6 @@
-/**
- * Storage layer. `chrome.storage.local` is the single source of truth; the
- * live injected <style> is derived state (see ADR 0001).
- *
- * The pure helpers (`selectEntryForUrl`, `migrate`, `parseImport`) carry the
- * branching logic and are unit-tested without a browser. The async wrappers are
- * thin shells over `chrome.storage.local`.
- */
+// Storage layer. `chrome.storage.local` is the single source of truth; the
+// live injected <style> is derived state. Pure helpers carry the branching
+// logic (unit-tested); the async functions are thin wrappers over storage.
 
 import { type Match, defaultMatchForUrl, matchesUrl } from './match';
 
@@ -21,11 +16,7 @@ export interface StyleEntry {
   css: string;
   /** Master on/off (the Disable button). When false, nothing applies. */
   enabled: boolean;
-  /**
-   * Opt-in: re-apply this entry automatically on every page load (v2). Gated by
-   * `enabled` and the global kill switch. Requires a persistent host permission
-   * for the origin; defaults false so existing entries stay manual-only.
-   */
+  /** Opt-in: re-apply on every page load. Requires a persistent host permission. */
   autoApply: boolean;
   updatedAt: number;
   schemaVersion: number;
@@ -54,9 +45,8 @@ const DEFAULT_META: Meta = { schemaVersion: SCHEMA_VERSION, globallyDisabled: fa
 // ---------------------------------------------------------------------------
 
 /**
- * Choose the entry that applies to a URL. Prefers a `host` match (the precise,
- * v1 default) over broader rules so a site-specific override wins over a
- * domain-wide one. Returns `null` when nothing matches.
+ * Choose the entry that applies to a URL, preferring more specific matches
+ * (a site-specific `host` override wins over a domain-wide one), newest first.
  */
 export function selectEntryForUrl(entries: StyleEntry[], url: string): StyleEntry | null {
   const matching = entries.filter((entry) => matchesUrl(entry.match, url));
@@ -75,11 +65,7 @@ export function selectEntryForUrl(entries: StyleEntry[], url: string): StyleEntr
   return matching[0] ?? null;
 }
 
-/**
- * Should this entry be injected automatically on page load? Pure gate shared by
- * the auto-apply content script and the worker: the entry must be enabled, opted
- * into auto-apply, and the global kill switch off.
- */
+/** Pure auto-apply gate shared by the content script and the worker. */
 export function shouldAutoApply(entry: StyleEntry, meta: Meta): boolean {
   return entry.enabled && entry.autoApply && !meta.globallyDisabled;
 }
@@ -109,8 +95,7 @@ export function parseImport(json: string): { entries: EntryMap; meta: Meta } {
     throw new Error('File does not contain an export bundle.');
   }
   const bundle = data as Partial<ExportBundle> & { app?: string };
-  // Accept the legacy `css-overrides` tag so files exported before the rename
-  // still import. New exports are tagged `stylewright`.
+  // Accept the legacy `css-overrides` tag from files exported before the rename.
   if (bundle.app !== 'stylewright' && bundle.app !== 'css-overrides') {
     throw new Error('This file was not exported by Stylewright.');
   }

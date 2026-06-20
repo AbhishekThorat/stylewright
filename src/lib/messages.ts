@@ -1,9 +1,4 @@
-/**
- * Typed message contract between the side panel and the background worker.
- *
- * The worker owns storage, permissions, and injection; the panel is a thin
- * view that sends requests and renders the returned context.
- */
+// Typed message contract between the side panel and the background worker.
 
 import type { ExportBundle, StyleEntry } from './storage';
 
@@ -15,10 +10,9 @@ export interface TabContext {
   host: string | null;
   injectable: boolean;
   /**
-   * We have a live tab but Chrome won't reveal its URL yet (no `activeTab`
-   * grant), so we can't tell if it's styleable. The user must click the toolbar
-   * icon to grant access. Distinct from `injectable: false` on a known-internal
-   * page (`chrome://`, the web store) that genuinely can't be styled.
+   * Live tab, but Chrome won't reveal its URL yet (no `activeTab` grant) — the
+   * user must click the toolbar icon. Distinct from `injectable: false` on a
+   * known-internal page that genuinely can't be styled.
    */
   needsActivation: boolean;
   /** The saved override for this site, if any. */
@@ -43,10 +37,7 @@ export type Request =
 
 export type RequestType = Request['type'];
 
-/**
- * Worker → panel push (fire-and-forget, no response). Sent when the toolbar icon
- * is clicked so an already-open panel re-reads context after the activeTab grant.
- */
+/** Worker → panel push: re-read context after the toolbar-click activeTab grant. */
 export type Notification = { type: 'panelRefresh' };
 
 /** Narrowing guard for the untyped `chrome.runtime.onMessage` payload. */

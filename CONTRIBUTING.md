@@ -24,7 +24,6 @@ src/lib/             Pure, testable logic
   inject.ts          The function injected into pages
   messages.ts        Typed message contracts (panel <-> worker)
 tests/e2e/           Playwright end-to-end tests
-docs/adr/            Architecture Decision Records
 ```
 
 ## Development workflow
